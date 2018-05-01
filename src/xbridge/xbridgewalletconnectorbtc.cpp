@@ -466,8 +466,6 @@ bool gettxout(const std::string & rpcuser,
     return true;
 }
 
-//*****************************************************************************
-//*****************************************************************************
 bool gettransaction(const std::string & rpcuser,
                     const std::string & rpcpasswd,
                     const std::string & rpcip,
@@ -530,6 +528,104 @@ bool gettransaction(const std::string & rpcuser,
             if(vout == txout.vout && category == "receive")
             {
                 txout.amount = find_value(elementObj, "amount").get_real();
+                break;
+            }
+        }
+    }
+    catch (std::exception & e)
+    {
+        LOG() << "gettransaction exception " << e.what();
+        return false;
+    }
+
+    return true;
+}
+
+//*****************************************************************************
+//*****************************************************************************
+bool getDecodeRawTransaction(const std::string & rpcuser,
+                                const std::string & rpcpasswd,
+                                const std::string & rpcip,
+                                const std::string & rpcport,
+                                wallet::UtxoEntry & txout)
+{
+    try
+    {
+        LOG() << "rpc call <gettransaction>";
+
+        txout.amount = 0;
+
+        Array params;
+        params.push_back(txout.txId);
+        Object reply = CallRPC(rpcuser, rpcpasswd, rpcip, rpcport,
+                               "getrawtransaction", params);
+
+        // Parse reply
+        const Value & result = find_value(reply, "result");
+        const Value & error  = find_value(reply, "error");
+
+        if (error.type() != null_type)
+        {
+            // Error
+            LOG() << "error: " << write_string(error, false);
+            return false;
+        }
+        else if (result.type() != str_type)
+        {
+            // Result
+            LOG() << "result of getrawtransaction not a string " <<
+                     (result.type() == null_type ? "" :
+                      result.type() == str_type  ? result.get_str() :
+                                                   write_string(result, true));
+            return false;
+        }
+
+
+        Array d { Value(result.get_str()) };
+        reply = CallRPC(rpcuser, rpcpasswd, rpcip, rpcport, "decoderawtransaction", d);
+        
+        const Value & result2 = find_value(reply, "result");
+        const Value & error2  = find_value(reply, "error");
+
+        if (error2.type() != null_type)
+        {
+            // Error
+            LOG() << "error: " << write_string(error2, false);
+            return false;
+        }
+        else if (result2.type() != obj_type)
+        {
+            // Result
+            LOG() << "result of decoderawtransaction not an object " <<
+                     (result2.type() == null_type ? "" :
+                      result2.type() == str_type  ? result2.get_str() :
+                                                   write_string(result2, true));
+            return false;
+        }
+        
+        Object o = result2.get_obj();
+
+        const Value & vouts = find_value(o, "vout");
+        if(vouts.type() != array_type)
+        {
+            LOG() << "vout not an array type";
+            return false;
+        }
+
+        for(const Value & element : vouts.get_array())
+        {
+            if(element.type() != obj_type)
+            {
+                LOG() << "vouts element not an object type";
+                return false;
+            }
+
+            Object elementObj = element.get_obj();
+
+            int vout = find_value(elementObj, "n").get_int();
+            if(vout == txout.vout)
+            {
+                txout.amount = find_value(elementObj, "value").get_real();
                 break;
             }
         }
@@ -1230,7 +1326,7 @@ bool BtcWalletConnector::getTxOut(wallet::UtxoEntry & entry)
     {
         LOG() << "gettxout failed, trying call gettransaction " << __FUNCTION__;
 
-        if(!rpc::gettransaction(m_user, m_passwd, m_ip, m_port, entry))
+        if(!rpc::getDecodeRawTransaction(m_user, m_passwd, m_ip, m_port, entry))
         {
             WARN() << "both calls of gettxout and gettransaction failed " << __FUNCTION__;
             return false;
