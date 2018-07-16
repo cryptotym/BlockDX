@@ -23,6 +23,8 @@ BlocknetLockMenu QPushButton:!hover { color: #016AFF; background-color: white; }
 BlocknetLockMenu QPushButton:hover { color: white; background-color: #016AFF; }
 BlocknetLockMenu #hdiv { background-color: #CCCCCC; }
 
+BlocknetDropdown { background-color: #6F8097; }
+
 BlocknetWallet #content { background-color: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 1, stop: 0 #000D20, stop: 1 #0C2448); }
 
 #h1 { font-size: 51px; color: white; font-family: "Roboto"; font-weight: 25; }
